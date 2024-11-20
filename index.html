@@ -33,16 +33,16 @@
 </head>
 <body>
     <div id="store">
+        <header>
+            <h1>{{ message }}</h1>
+        </header>
+        <button :disabled="!isCartNotEmpty" v-on:click="toggleView">
+            {{ itemInCart }}
+            <span class="fa-solid fa-cart-plus"></span>
+            {{ checkoutButtonText }}
+        </button>
         <div v-if="showProduct">
-            <header>
-                <h1>{{ message }}</h1>
-                <button v-on:click="showCheckOut">
-                    {{ itemInCart }}
-                    <span class="fa-solid fa-cart-plus"></span>
-                    Check Out
-                </button>
-            </header>
-            <div class="lesson-container">
+            <div v-for="lesson in lessons" :key="lesson.id" class="lesson-container">
                 <img :src="lesson.imagePath" :alt="lesson.imageAlt">
                 <div class="lesson-details">
                     <h3 v-text="lesson.subject"></h3>
@@ -51,10 +51,10 @@
                     <p><strong>Price:</strong> Rs <span v-text="lesson.price"></span></p>
                     <p><strong>Phone Number:</strong> <span v-text="lesson.number"></span></p>
                     <p><strong>Spaces:</strong> <span v-text="lesson.availableInventory"></span></p>
-                    <button v-on:click="addItem" v-if="canAddToCart">
+                    <button v-on:click="addItem(lesson.id)" v-if="lesson.availableInventory > 0">
                         Add to cart
                     </button>
-                    <button disabled='disabled' v-else>
+                    <button disabled="disabled" v-else>
                         Add to cart
                     </button>
                 </div>
@@ -63,12 +63,26 @@
         
         <div v-else>
             <h2>LearnZone Checkout</h2>
+            <div v-if="isCartNotEmpty">
+                <div v-for="lessonId in cart" :key="lessonId" class="lesson-container">
+                    <div class="lesson-details">
+                        <h4 v-text="lessons.find(lesson => lesson.id === lessonId).subject"></h4>
+                        <p>Price: Rs {{ lessons.find(lesson => lesson.id === lessonId).price }}</p>
+                        <button v-on:click="removeItem(lessonId)">Remove</button>
+                    </div>
+                </div>
+            </div>
+            <p v-else>Your cart is empty.</p>
             <button v-on:click="showProducts">Back to Products</button>
             <p>
                 <strong>First Name:</strong>
                 <input v-model.trim="order.firstName"/>
                 <strong>Last Name:</strong>
                 <input v-model.trim="order.lastName"/>
+            </p>
+            <p>
+                <strong>Phone Number:</strong>
+                <input v-model="order.phone"/>
             </p>
             <p>
                 <strong>Address:</strong>
@@ -78,43 +92,16 @@
                 <strong>City:</strong>
                 <input v-model="order.city"/>
             </p>
-            <p>
-                <strong>State:</strong>
-                <select v-model="order.state">
-                    <option disabled value="">State</option>
-                    <option v-for="(key, state) in states" v-bind:value="state">
-                        {{ key }}
-                    </option>
-                </select>
-            </p>
-            <p>
-                <strong>Zip/Postal Code:</strong> 
-                <input v-model.number="order.zip"/>
-            </p>
-            <p>
-                <input type="checkbox" id="gift" value="true"
-                       v-model="order.gift"
-                       v-bind:true-value="order.sendGift"
-                       v-bind:false-value="order.dontSendGift">
-                <label for="gift">Ship As Gift?</label>
-            </p>
-            <p>
-                <input type="radio" id="home" value="Home" v-model="order.method">
-                <label for="home">Home</label>
-                <input type="radio" id="business" value="Business" v-model="order.method">
-                <label for="business">Business</label>
-            </p>
             
             <h2>Order Information</h2>
             <p>First Name: {{ order.firstName }}</p>
             <p>Last Name: {{ order.lastName }}</p>
+            <p>Number: {{ order.phone }}</p>
             <p>Address: {{ order.address }}</p>
             <p>City: {{ order.city }}</p>
-            <p>Zip: {{ order.zip }}</p>
-            <p>State: {{ states[order.state] }}</p>
-            <p>Gift: {{ order.gift }}</p>
-            <p>Delivery to: {{ order.method }}</p>
-            <button v-on:click="submitForm">Place Order</button>
+            <button :disabled="!isCheckoutEnabled" v-on:click="submitForm">
+                Check Out
+            </button>
         </div>
     </div>
 
@@ -123,7 +110,8 @@
             el: '#store',
             data: {
                 message: "Welcome to LearnZone",
-                lesson: {
+                lessons: [
+                    {
                     id: 1001,
                     subject: "Mathematics",
                     location: "Vacoas-Phoenix",
@@ -133,44 +121,87 @@
                     imagePath: "maths.jpg",
                     imageAlt: "Mathematics Lesson Image",
                     availableInventory: 5
-                },
+                    },
+                    {
+                        id: 1002,
+                        subject: "Physics",
+                        location: "Curepipe",
+                        tutor: "Dr. Emily Carter",
+                        price: 600,
+                        number: 57609456,
+                        imagePath: "physics.jpg",
+                        imageAlt: "Physics Lesson Image",
+                        availableInventory: 5
+                    },
+                    {
+                        id: 1003,
+                        subject: "Chemistry",
+                        location: "Port Louis",
+                        tutor: "Dr. Amelia Brown",
+                        price: 550,
+                        number: 57609567,
+                        imagePath: "chemistry.jpg",
+                        imageAlt: "Chemistry Lesson Image",
+                        availableInventory: 5
+                    }
+                ],
                 cart: [],
                 showProduct: true, // Controls the view toggle
                 order: {
                     firstName: '',
                     lastName: '',
+                    phone: '',
                     address: '',
                     city: '',
-                    state: '',
-                    zip: '',
-                    gift: false,
-                    method: ''
-                },
-                states: {
-                    NY: "New York",
-                    CA: "California",
-                    TX: "Texas"
                 }
             },
             computed: {
+                isCartNotEmpty() {
+                    // The cart is not empty if it contains at least one lesson
+                    return this.cart.length > 0;
+                },
+                isCheckoutEnabled() {
+                    // Validate names (letters only) and phone (numbers only)
+                    const nameRegex = /^[A-Za-z\s]+$/;
+                    const phoneRegex = /^[0-9]+$/;
+
+                    const isNameValid = nameRegex.test(this.order.firstName) && nameRegex.test(this.order.lastName);
+                    const isPhoneValid = phoneRegex.test(this.order.phone);
+
+                    return isNameValid && isPhoneValid;
+                },
                 itemInCart: function() { 
                     return this.cart.length || "";
                 },
-                canAddToCart: function() {
-                    return this.lesson.availableInventory > 0;
+                checkoutButtonText() {
+                    return this.showProduct ? "Shopping Cart" : "Back to Products";
                 }
             },
             methods: {
-                showCheckOut() {
-                    this.showProduct = false; // Explicitly go to the checkout page
+                toggleView() {
+                    this.showProduct = !this.showProduct;
                 },
                 showProducts() {
-                    this.showProduct = true; // Explicitly go back to the product page
+                    this.showProduct = true; // Explicitly switch to the products page
                 },
-                addItem: function() {
-                    if (this.canAddToCart) {
-                        this.cart.push(this.lesson.id);
-                        this.lesson.availableInventory--;
+                addItem(lessonId) {
+                    // Find the lesson by ID
+                    const lesson = this.lessons.find(item => item.id === lessonId);
+                    if (lesson && lesson.availableInventory > 0) {
+                        this.cart.push(lesson.id); // Add the lesson ID to the cart
+                        lesson.availableInventory--; // Decrement the inventory of the selected lesson
+                    }
+                },
+                removeItem(lessonId) {
+                    // Find the lesson by ID
+                    const lesson = this.lessons.find(item => item.id === lessonId);
+                    if (lesson) {
+                        // Remove the first occurrence of the lesson ID from the cart
+                        const index = this.cart.indexOf(lessonId);
+                        if (index > -1) {
+                            this.cart.splice(index, 1);
+                        }
+                        lesson.availableInventory++; // Increment the inventory back
                     }
                 },
                 submitForm() {
