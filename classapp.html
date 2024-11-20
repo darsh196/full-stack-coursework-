@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" />
+    <script src="https://unpkg.com/vue@2.7.8/dist/vue.js"></script> 
+    <title>LearnZone</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .lesson-container {
+            display: flex;
+            align-items: center;
+            border: 2px solid #000;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 600px;
+            margin: 20px auto;
+        }
+        .lesson-container img {
+            width: 200px;
+            height: 200px;
+            margin-right: 20px;
+            border-radius: 5px;
+        }
+        .lesson-details {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="store">
+        <div v-if="showProduct">
+            <header>
+                <h1>{{ message }}</h1>
+                <button v-on:click="showCheckOut">
+                    {{ itemInCart }}
+                    <span class="fa-solid fa-cart-plus"></span>
+                    Check Out
+                </button>
+            </header>
+            <div class="lesson-container">
+                <img :src="lesson.imagePath" :alt="lesson.imageAlt">
+                <div class="lesson-details">
+                    <h3 v-text="lesson.subject"></h3>
+                    <p><strong>Tutor:</strong> <span v-text="lesson.tutor"></span></p>
+                    <p><strong>Location:</strong> <span v-text="lesson.location"></span></p>
+                    <p><strong>Price:</strong> Rs <span v-text="lesson.price"></span></p>
+                    <p><strong>Phone Number:</strong> <span v-text="lesson.number"></span></p>
+                    <p><strong>Spaces:</strong> <span v-text="lesson.availableInventory"></span></p>
+                    <button v-on:click="addItem" v-if="canAddToCart">
+                        Add to cart
+                    </button>
+                    <button disabled='disabled' v-else>
+                        Add to cart
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div v-else>
+            <h2>LearnZone Checkout</h2>
+            <button v-on:click="showProducts">Back to Products</button>
+            <p>
+                <strong>First Name:</strong>
+                <input v-model.trim="order.firstName"/>
+                <strong>Last Name:</strong>
+                <input v-model.trim="order.lastName"/>
+            </p>
+            <p>
+                <strong>Address:</strong>
+                <input v-model="order.address"/>
+            </p>
+            <p>
+                <strong>City:</strong>
+                <input v-model="order.city"/>
+            </p>
+            <p>
+                <strong>State:</strong>
+                <select v-model="order.state">
+                    <option disabled value="">State</option>
+                    <option v-for="(key, state) in states" v-bind:value="state">
+                        {{ key }}
+                    </option>
+                </select>
+            </p>
+            <p>
+                <strong>Zip/Postal Code:</strong> 
+                <input v-model.number="order.zip"/>
+            </p>
+            <p>
+                <input type="checkbox" id="gift" value="true"
+                       v-model="order.gift"
+                       v-bind:true-value="order.sendGift"
+                       v-bind:false-value="order.dontSendGift">
+                <label for="gift">Ship As Gift?</label>
+            </p>
+            <p>
+                <input type="radio" id="home" value="Home" v-model="order.method">
+                <label for="home">Home</label>
+                <input type="radio" id="business" value="Business" v-model="order.method">
+                <label for="business">Business</label>
+            </p>
+            
+            <h2>Order Information</h2>
+            <p>First Name: {{ order.firstName }}</p>
+            <p>Last Name: {{ order.lastName }}</p>
+            <p>Address: {{ order.address }}</p>
+            <p>City: {{ order.city }}</p>
+            <p>Zip: {{ order.zip }}</p>
+            <p>State: {{ states[order.state] }}</p>
+            <p>Gift: {{ order.gift }}</p>
+            <p>Delivery to: {{ order.method }}</p>
+            <button v-on:click="submitForm">Place Order</button>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#store',
+            data: {
+                message: "Welcome to LearnZone",
+                lesson: {
+                    id: 1001,
+                    subject: "Mathematics",
+                    location: "Vacoas-Phoenix",
+                    tutor: "Mr. Jonathan Maxwell",
+                    price: 500,
+                    number: 57609283,
+                    imagePath: "maths.jpg",
+                    imageAlt: "Mathematics Lesson Image",
+                    availableInventory: 5
+                },
+                cart: [],
+                showProduct: true, // Controls the view toggle
+                order: {
+                    firstName: '',
+                    lastName: '',
+                    address: '',
+                    city: '',
+                    state: '',
+                    zip: '',
+                    gift: false,
+                    method: ''
+                },
+                states: {
+                    NY: "New York",
+                    CA: "California",
+                    TX: "Texas"
+                }
+            },
+            computed: {
+                itemInCart: function() { 
+                    return this.cart.length || "";
+                },
+                canAddToCart: function() {
+                    return this.lesson.availableInventory > 0;
+                }
+            },
+            methods: {
+                showCheckOut() {
+                    this.showProduct = false; // Explicitly go to the checkout page
+                },
+                showProducts() {
+                    this.showProduct = true; // Explicitly go back to the product page
+                },
+                addItem: function() {
+                    if (this.canAddToCart) {
+                        this.cart.push(this.lesson.id);
+                        this.lesson.availableInventory--;
+                    }
+                },
+                submitForm() {
+                    alert("Order placed successfully!");
+                }
+            }
+        });
+    </script>
+</body>
+
