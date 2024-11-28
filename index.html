@@ -139,7 +139,7 @@
                 sortOrder: 'asc' // Default sort order 'asc' (ascending)
             },
             mounted() {
-                fetch('https://express-repo-x1lu.onrender.com/lessons')
+                fetch('https://express-repo-dufo.onrender.com/lessons')
                     .then(response => response.json())
                     .then(data => {
                         console.log('Fetched lessons:', data);
@@ -205,7 +205,7 @@
                         return;
                     }
 
-                    fetch(`https://express-repo-x1lu.onrender.com/search?q=${encodeURIComponent(this.searchQuery)}`)
+                    fetch(`https://express-repo-dufo.onrender.com/search?q=${encodeURIComponent(this.searchQuery)}`)
                         .then(response => response.json())
                         .then(data => {
                             console.log('Search results:', data);
@@ -248,7 +248,7 @@
                         totalCost: this.totalCost,
                     };
 
-                fetch('https://express-repo-x1lu.onrender.com/orders', {
+                fetch('https://express-repo-dufo.onrender.com/orders', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(orderData),
