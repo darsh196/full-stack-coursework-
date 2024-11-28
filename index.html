@@ -127,7 +127,7 @@
                 message: "Welcome to LearnZone",
                 searchQuery: '', // Track user input for search
                 lessons: [],
-                cart: [], // Cart will be restored from localStorage
+                cart: [],
                 filteredLessons: [], // Results from backend search
                 showProduct: true, // Controls the view toggle
                 order: {
@@ -139,52 +139,36 @@
                 sortOrder: 'asc' // Default sort order 'asc' (ascending)
             },
             mounted() {
-                // Fetch lessons from backend
                 fetch('https://express-repo-dufo.onrender.com/lessons')
                     .then(response => response.json())
                     .then(data => {
                         console.log('Fetched lessons:', data);
-                        // Initialize lessons and set originalInventory
-                        this.lessons = data.map(lesson => ({
-                            ...lesson,
-                            originalInventory: lesson.availableInventory // Set original inventory value
-                        }));
+                        this.lessons = data || [];
                         this.filteredLessons = this.lessons; // Initialize filteredLessons with all lessons
-                        this.syncInventoryWithCart();
                     })
                     .catch(err => {
                         console.error('Error fetching lessons:', err);
                         this.lessons = [];
                         this.filteredLessons = [];
                     });
-        
-                // Restore cart from localStorage
-                const storedCart = localStorage.getItem('cart');
-                if (storedCart) {
-                    this.cart = JSON.parse(storedCart); // Parse the cart data and initialize the cart
-                }
-
-                // Clear localStorage on browser/tab close
-                window.addEventListener('beforeunload', () => {
-                    localStorage.removeItem('cart');
-                });
-            },
-            watch: {
-                // Watch for changes in the cart and save to localStorage
-                cart: {
-                    handler(newCart) {
-                        localStorage.setItem('cart', JSON.stringify(newCart));
-                    },
-                    deep: true // Ensure the watcher tracks changes in nested objects
-                }
-            },
+                },
             computed: {
                 isCartNotEmpty() {
                     // The cart is not empty if it contains at least one lesson
                     return this.cart.length > 0;
                 },
-                itemInCart() {
-                    return this.cart.length || 0;
+                isCheckoutEnabled() {
+                    // Validate names (letters only) and phone (numbers only)
+                    const nameRegex = /^[A-Za-z\s]+$/;
+                    const phoneRegex = /^[0-9]+$/;
+
+                    const isNameValid = nameRegex.test(this.order.firstName) && nameRegex.test(this.order.lastName);
+                    const isPhoneValid = phoneRegex.test(this.order.phone);
+
+                    return isNameValid && isPhoneValid;
+                },
+                itemInCart: function() { 
+                    return this.cart.length || "";
                 },
                 checkoutButtonText() {
                     return this.showProduct ? "Shopping Cart" : "Back to Products";
@@ -200,7 +184,7 @@
                     return [...this.filteredLessons].sort((a, b) => {
                         const attribute = this.sortAttribute;
                         let result = 0;
-        
+
                         if (typeof a[attribute] === 'string') {
                             // Sort alphabetically for string attributes
                             result = a[attribute].localeCompare(b[attribute]);
@@ -208,45 +192,23 @@
                             // Sort numerically for number attributes
                             result = a[attribute] - b[attribute];
                         }
-        
+
                         return this.sortOrder === 'asc' ? result : -result;
                     });
                 }
             },
             methods: {
-                syncInventoryWithCart() {
-                    // Reset inventory to its original value
-                    this.lessons.forEach(lesson => {
-                        const cartCount = this.cart.filter(id => id === lesson.id).length;
-                        lesson.availableInventory = lesson.originalInventory - cartCount;
-                    });
-                },
-                addItem(lessonId) {
-                    const lesson = this.lessons.find(item => item.id === lessonId);
-                    if (lesson && lesson.availableInventory > 0) {
-                        this.cart.push(lesson.id);
-                        lesson.availableInventory--; // Update inventory locally
-                    }
-                },
-                removeItem(lessonId) {
-                    const lesson = this.lessons.find(item => item.id === lessonId);
-                    if (lesson) {
-                        const index = this.cart.indexOf(lessonId);
-                        if (index > -1) {
-                            this.cart.splice(index, 1);
-                        }
-                        lesson.availableInventory++; // Restore inventory locally
-                    }
-                },
                 performSearch() {
                     if (!this.searchQuery) {
                         this.filteredLessons = this.lessons; // Reset to all lessons if query is empty
+                        console.log('Search query empty. Resetting filteredLessons:', this.filteredLessons);
                         return;
                     }
-        
+
                     fetch(`https://express-repo-dufo.onrender.com/search?q=${encodeURIComponent(this.searchQuery)}`)
                         .then(response => response.json())
                         .then(data => {
+                            console.log('Search results:', data);
                             this.filteredLessons = data; // Update with filtered results
                         })
                         .catch(err => console.error('Error performing search:', err));
@@ -257,6 +219,26 @@
                 showProducts() {
                     this.showProduct = true; // Explicitly switch to the products page
                 },
+                addItem(lessonId) {
+                    // Find the lesson by ID
+                    const lesson = this.lessons.find(item => item.id === lessonId);
+                    if (lesson && lesson.availableInventory > 0) {
+                        this.cart.push(lesson.id); // Add the lesson ID to the cart
+                        lesson.availableInventory--; // Decrement the inventory of the selected lesson
+                    }
+                },
+                removeItem(lessonId) {
+                    // Find the lesson by ID
+                    const lesson = this.lessons.find(item => item.id === lessonId);
+                    if (lesson) {
+                        // Remove the first occurrence of the lesson ID from the cart
+                        const index = this.cart.indexOf(lessonId);
+                        if (index > -1) {
+                            this.cart.splice(index, 1);
+                        }
+                        lesson.availableInventory++; // Increment the inventory back
+                    }
+                },
                 submitForm() {
                     const orderData = {
                         name: `${this.order.firstName} ${this.order.lastName}`,
@@ -265,25 +247,23 @@
                         spaces: this.cart.length,
                         totalCost: this.totalCost,
                     };
-        
-                    fetch('https://express-repo-dufo.onrender.com/orders', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(orderData),
+
+                fetch('https://express-repo-dufo.onrender.com/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderData),
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert('Order placed successfully!');
+                        console.log(data);
+                        this.cart = []; // Clear cart after order
+                        this.showProduct = true; // Redirect back to products
                     })
-                        .then(response => response.json())
-                        .then(data => {
-                            alert('Order placed successfully!');
-                            console.log(data);
-                            this.cart = []; // Clear cart after order
-                            localStorage.removeItem('cart'); // Clear cart from localStorage
-                            this.showProduct = true; // Redirect back to products
-                        })
-                        .catch(err => console.error('Error submitting order:', err));
+                    .catch(err => console.error('Error submitting order:', err));
                 }
             }
         });
-
     </script>
 </body>
 
