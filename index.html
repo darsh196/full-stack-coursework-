@@ -224,9 +224,24 @@
                     const lesson = this.lessons.find(item => item.id === lessonId);
                     if (lesson && lesson.availableInventory > 0) {
                         this.cart.push(lesson.id); // Add the lesson ID to the cart
-                        lesson.availableInventory--; // Decrement the inventory of the selected lesson
+                        lesson.availableInventory--; // Decrement the inventory locally
+                
+                        // Persist the change to the back-end
+                        fetch(`https://express-repo-dufo.onrender.com/lessons/${lessonId}/inventory`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ availableInventory: lesson.availableInventory }),
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! Status: ${response.status}`);
+                            }
+                            console.log(`Inventory updated for lesson ${lessonId}`);
+                        })
+                        .catch(err => console.error('Error updating inventory:', err));
                     }
                 },
+,
                 removeItem(lessonId) {
                     // Find the lesson by ID
                     const lesson = this.lessons.find(item => item.id === lessonId);
@@ -236,7 +251,21 @@
                         if (index > -1) {
                             this.cart.splice(index, 1);
                         }
-                        lesson.availableInventory++; // Increment the inventory back
+                        lesson.availableInventory++; // Increment the inventory locally
+                
+                        // Persist the change to the back-end
+                        fetch(`https://express-repo-dufo.onrender.com/lessons/${lessonId}/inventory`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ availableInventory: lesson.availableInventory }),
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! Status: ${response.status}`);
+                            }
+                            console.log(`Inventory updated for lesson ${lessonId}`);
+                        })
+                        .catch(err => console.error('Error updating inventory:', err));
                     }
                 },
                 submitForm() {
