@@ -34,15 +34,39 @@
 <body>
     <div id="store">
         <header>
-            <h1>{{ message }}</h1>
+            <center><h1>{{ message }}</h1></center>
         </header>
-        <button :disabled="!isCartNotEmpty" v-on:click="toggleView">
+        <center><button :disabled="!isCartNotEmpty" v-on:click="toggleView">
             {{ itemInCart }}
             <span class="fa-solid fa-cart-plus"></span>
             {{ checkoutButtonText }}
-        </button>
+        </button></center>
+        <br>
+        <div>
+            <center><input 
+                type="text" 
+                v-model="searchQuery" 
+                placeholder="Search lessons..." 
+                @input="performSearch"
+            /></center>
+        </div>
+        <br>        
         <div v-if="showProduct">
-            <div v-for="lesson in lessons" :key="lesson.id" class="lesson-container">
+            <center><div style="margin-bottom: 20px;">
+                <label for="sortAttribute">Sort by:</label>
+                <select v-model="sortAttribute" id="sortAttribute">
+                    <option value="subject">Subject</option>
+                    <option value="location">Location</option>
+                    <option value="price">Price</option>
+                    <option value="availableInventory">Spaces</option>
+                </select>
+                <label for="sortOrder">Order:</label>
+                <select v-model="sortOrder" id="sortOrder">
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
+                </select>
+            </div></center>
+            <div v-for="lesson in sortedLessons" :key="lesson.id" class="lesson-container">
                 <img :src="lesson.imagePath" :alt="lesson.imageAlt">
                 <div class="lesson-details">
                     <h3 v-text="lesson.subject"></h3>
@@ -84,21 +108,12 @@
                 <strong>Phone Number:</strong>
                 <input v-model="order.phone"/>
             </p>
-            <p>
-                <strong>Address:</strong>
-                <input v-model="order.address"/>
-            </p>
-            <p>
-                <strong>City:</strong>
-                <input v-model="order.city"/>
-            </p>
             
             <h2>Order Information</h2>
             <p>First Name: {{ order.firstName }}</p>
             <p>Last Name: {{ order.lastName }}</p>
             <p>Number: {{ order.phone }}</p>
-            <p>Address: {{ order.address }}</p>
-            <p>City: {{ order.city }}</p>
+            <p><strong>Total Cost:</strong> Rs {{ totalCost }}</p>
             <button :disabled="!isCheckoutEnabled" v-on:click="submitForm">
                 Check Out
             </button>
@@ -110,51 +125,33 @@
             el: '#store',
             data: {
                 message: "Welcome to LearnZone",
-                lessons: [
-                    {
-                    id: 1001,
-                    subject: "Mathematics",
-                    location: "Vacoas-Phoenix",
-                    tutor: "Mr. Jonathan Maxwell",
-                    price: 500,
-                    number: 57609283,
-                    imagePath: "maths.jpg",
-                    imageAlt: "Mathematics Lesson Image",
-                    availableInventory: 5
-                    },
-                    {
-                        id: 1002,
-                        subject: "Physics",
-                        location: "Curepipe",
-                        tutor: "Dr. Emily Carter",
-                        price: 600,
-                        number: 57609456,
-                        imagePath: "physics.jpg",
-                        imageAlt: "Physics Lesson Image",
-                        availableInventory: 5
-                    },
-                    {
-                        id: 1003,
-                        subject: "Chemistry",
-                        location: "Port Louis",
-                        tutor: "Dr. Amelia Brown",
-                        price: 550,
-                        number: 57609567,
-                        imagePath: "chemistry.jpg",
-                        imageAlt: "Chemistry Lesson Image",
-                        availableInventory: 5
-                    }
-                ],
+                searchQuery: '', // Track user input for search
+                lessons: [],
                 cart: [],
+                filteredLessons: [], // Results from backend search
                 showProduct: true, // Controls the view toggle
                 order: {
                     firstName: '',
                     lastName: '',
                     phone: '',
-                    address: '',
-                    city: '',
-                }
+                },
+                sortAttribute: 'subject', // Default sort by 'subject'
+                sortOrder: 'asc' // Default sort order 'asc' (ascending)
             },
+            mounted() {
+                fetch('https://express-repo-ssrq.onrender.com/lessons')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Fetched lessons:', data);
+                        this.lessons = data || [];
+                        this.filteredLessons = this.lessons; // Initialize filteredLessons with all lessons
+                    })
+                    .catch(err => {
+                        console.error('Error fetching lessons:', err);
+                        this.lessons = [];
+                        this.filteredLessons = [];
+                    });
+                },
             computed: {
                 isCartNotEmpty() {
                     // The cart is not empty if it contains at least one lesson
@@ -175,9 +172,47 @@
                 },
                 checkoutButtonText() {
                     return this.showProduct ? "Shopping Cart" : "Back to Products";
+                },
+                totalCost() {
+                    return this.cart.reduce((total, lessonId) => {
+                        const lesson = this.lessons.find(item => item.id === lessonId);
+                        return lesson ? total + lesson.price : total;
+                    }, 0);
+                },
+                sortedLessons() {
+                    // Sort the lessons based on the selected attribute and order
+                    return [...this.filteredLessons].sort((a, b) => {
+                        const attribute = this.sortAttribute;
+                        let result = 0;
+
+                        if (typeof a[attribute] === 'string') {
+                            // Sort alphabetically for string attributes
+                            result = a[attribute].localeCompare(b[attribute]);
+                        } else {
+                            // Sort numerically for number attributes
+                            result = a[attribute] - b[attribute];
+                        }
+
+                        return this.sortOrder === 'asc' ? result : -result;
+                    });
                 }
             },
             methods: {
+                performSearch() {
+                    if (!this.searchQuery) {
+                        this.filteredLessons = this.lessons; // Reset to all lessons if query is empty
+                        console.log('Search query empty. Resetting filteredLessons:', this.filteredLessons);
+                        return;
+                    }
+
+                    fetch(`https://express-repo-ssrq.onrender.com/search?q=${encodeURIComponent(this.searchQuery)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Search results:', data);
+                            this.filteredLessons = data; // Update with filtered results
+                        })
+                        .catch(err => console.error('Error performing search:', err));
+                },
                 toggleView() {
                     this.showProduct = !this.showProduct;
                 },
@@ -205,7 +240,27 @@
                     }
                 },
                 submitForm() {
-                    alert("Order placed successfully!");
+                    const orderData = {
+                        name: `${this.order.firstName} ${this.order.lastName}`,
+                        phoneNumber: this.order.phone,
+                        lessonIDs: this.cart,
+                        spaces: this.cart.length,
+                        totalCost: this.totalCost,
+                    };
+
+                fetch('https://express-repo-ssrq.onrender.com/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderData),
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert('Order placed successfully!');
+                        console.log(data);
+                        this.cart = []; // Clear cart after order
+                        this.showProduct = true; // Redirect back to products
+                    })
+                    .catch(err => console.error('Error submitting order:', err));
                 }
             }
         });
