@@ -144,8 +144,13 @@
                     .then(response => response.json())
                     .then(data => {
                         console.log('Fetched lessons:', data);
-                        this.lessons = data || [];
+                        // Initialize lessons and set originalInventory
+                        this.lessons = data.map(lesson => ({
+                            ...lesson,
+                            originalInventory: lesson.availableInventory // Set original inventory value
+                        }));
                         this.filteredLessons = this.lessons; // Initialize filteredLessons with all lessons
+                        this.syncInventoryWithCart();
                     })
                     .catch(err => {
                         console.error('Error fetching lessons:', err);
@@ -158,6 +163,11 @@
                 if (storedCart) {
                     this.cart = JSON.parse(storedCart); // Parse the cart data and initialize the cart
                 }
+
+                // Clear localStorage on browser/tab close
+                window.addEventListener('beforeunload', () => {
+                    localStorage.removeItem('cart');
+                });
             },
             watch: {
                 // Watch for changes in the cart and save to localStorage
@@ -204,6 +214,13 @@
                 }
             },
             methods: {
+                syncInventoryWithCart() {
+                    // Reset inventory to its original value
+                    this.lessons.forEach(lesson => {
+                        const cartCount = this.cart.filter(id => id === lesson.id).length;
+                        lesson.availableInventory = lesson.originalInventory - cartCount;
+                    });
+                },
                 addItem(lessonId) {
                     const lesson = this.lessons.find(item => item.id === lessonId);
                     if (lesson && lesson.availableInventory > 0) {
