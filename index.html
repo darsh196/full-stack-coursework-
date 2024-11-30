@@ -225,6 +225,12 @@
                     if (lesson && lesson.availableInventory > 0) {
                         this.cart.push(lesson.id); // Add the lesson ID to the cart
                         lesson.availableInventory--; // Decrement the inventory of the selected lesson
+
+                        // Ensure reactivity in filteredLessons
+                        const filteredLesson = this.filteredLessons.find(item => item.id === lessonId);
+                        if (filteredLesson) {
+                            filteredLesson.availableInventory = lesson.availableInventory;
+                        }
                     }
                 },
                 removeItem(lessonId) {
@@ -237,6 +243,12 @@
                             this.cart.splice(index, 1);
                         }
                         lesson.availableInventory++; // Increment the inventory back
+                        // Ensure reactivity in filteredLessons
+                        const filteredLesson = this.filteredLessons.find(item => item.id === lessonId);
+                        if (filteredLesson) {
+                            filteredLesson.availableInventory = lesson.availableInventory;
+                    
+                        }
                     }
                 },
                 submitForm() {
